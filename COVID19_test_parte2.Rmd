@@ -1,0 +1,40 @@
+---
+title: "Base de datos COVID-19 de México (Parte 2)"
+author: "Victoria Ríos Vázquez"
+date: "31/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#1.  Importamos la base de datos creada en la Parte 1
+En este caso, decidí correr el código de la Parte 1 con la base de datos del día siguiente (27 de enero de 2021)
+```{r}
+# Importamos las bases de datos listas para graficar
+covid.27 <- read.csv("covid27-01-21.csv")
+covid.26 <- read.csv("covid26-01-21.csv")
+```
+**NOTA**: Recuerda que los archivos .csv deben estar en la carpeta de trabajo actual
+
+#2. Graficamos los casos de cada entidad vs sexo
+```{r}
+library(ggplot2) # Cargamos la librería necesaria para crear el plot
+library(plotly) # Cargamos la librería necesaria para crear el plot interactivo
+
+plot26.sexo <- ggplot(covid.26, aes(x = ENTIDAD_NAC)) + geom_bar(aes(fill = SEXO)) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size = 5,lineheight = 5)) + ggtitle("Contagios de COVID-19 por entidad",subtitle = "26/01/2021") + labs(y= "Número de casos", x = "Entidad federativa") 
+
+ggplotly(plot26.sexo, width = 850, height = 850) # Generamos el plot interactivo
+
+```
+# Graficamos los casos de cada entidad vs edad
+```{r}
+library(ggplot2) # Cargamos la librería necesaria para crear el plot
+library(plotly) # Cargamos la librería necesaria para crear el plot interactivo
+
+plot26.sexo <- ggplot(covid.26, aes(x = ENTIDAD_NAC)) + geom_bar(aes(fill = factor(edad.vec))) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size = 5,lineheight = 5), legend.title = element_text(color = "black", size = 10),legend.text = element_text(color = "black", size = 5),legend.key.size = unit(0.1, 'cm')) + ggtitle("Contagios de COVID-19 por entidad",subtitle = "26/01/2021") + labs(y= "Número de casos", x = "Entidad federativa", fill = "Edad") 
+
+ggplotly(plot26.sexo, width = 850, height = 800)
+```
+¡Listo! Es posible replicar este proceso para las bases de datos de la página oficial del gobierno de México en este link: [https://www.gob.mx/salud/documentos/datos-abiertos-152127] al descargar el archivo .csv deseado y correr el código de la Parte 1 ("Base de datos COVID-19 de México (Limpieza y visualización)"), *limpiando automáticamente tus datos, listos para graficar* 

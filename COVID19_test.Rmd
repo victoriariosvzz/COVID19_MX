@@ -1,0 +1,364 @@
+---
+title: "Base de datos COVID-19 de México (Limpieza y visualización)"
+author: "Victoria Ríos Vázquez"
+date: "26/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Importamos las bases de datos
+
+Importamos las bases de datos del sitio oficial de datos epidemiológicos del gobierno de México [https://www.gob.mx/salud/documentos/datos-abiertos-152127] como archivos .csv
+```{r}
+covid.df <- read.csv("210127COVID19MEXICO.csv") # Datos del 27 de enero de 2021
+```
+
+Revisamos la estructura de la base de datos
+```{r}
+head(covid.df) # Revisamos las primeras filas
+str(covid.df) # Revisamos la estructura
+```
+# 2. Análisis exploratorio de los datos (*EDA* en inglés)
+
+```{r}
+library(ggplot2) # Importamos la librería para graficar
+library(plotly)
+
+covid.plot <- ggplot(covid.df,aes(x=factor(EDAD))) + geom_bar(aes(fill = factor(INTUBADO))) +  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 5, lineheight = 5))
+
+ggplotly(covid.plot, width = 850, height = 850)
+
+
+```
+
+
+# 3. Limpieza de la base de datos
+```{r}
+intubado.vec <- covid.df$INTUBADO # La columna "INTUBADO"
+edad.vec <- covid.df$EDAD         # La columna "EDAD"
+ 
+# Asignamos las etiquetas correspondientes a los valores (especificadas en los archivos .xlsx de Catálogos y Descriptores)
+intubado.vec[intubado.vec == 1] <- "SI"
+intubado.vec[intubado.vec == 2] <- "NO"
+intubado.vec[intubado.vec == 97] <- "N/A"
+intubado.vec[intubado.vec == 98] <- "SE IGNORA"
+intubado.vec[intubado.vec == 99] <- "NO ESPECIFICADO"
+
+# Revisamos los valores únicos en el campo de INTUBADO
+unique(intubado.vec)
+
+# Guardamos los resultados como datos tipo "factor"
+intubado.vec <- as.factor(intubado.vec)
+
+# Revisamos que la clase es efectivamente "factor"
+class(intubado.vec)
+
+```
+Unimos los dos vectores de información (EDAD e INTUBADO) previamente filtrados en un mismo data frame junto con el resto de la información original
+```{r}
+library(dplyr) # Cargamos la librería de funciones
+
+covid.df2 <- select(covid.df,c(-EDAD,-INTUBADO)) # Eliminamos los campos de EDAD e INTUBADO
+edad.intubados <- data.frame(edad.vec,intubado.vec,covid.df2) # Unimos todo en un solo data frame
+
+# Revisamos la estructura final
+str(covid.df2)
+
+```
+
+# 3. Segundo análisis exploratorio de datos (valores etiquetados)
+```{r}
+library(ggplot2) # Cargamos la librería para graficar
+ 
+covid.plot <- ggplot(edad.intubados,aes(x=edad.vec)) + geom_bar(aes(factor(edad.vec), fill = intubado.vec)) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 5, lineheight = 5)) # Graficamos los casos según el campo EDAD
+
+ggplotly(covid.plot, height = 850, width = 850) # Desplegamos la gráfica
+
+```
+
+
+# 4. Aplicando más filtros a la información
+```{r}
+# Primero, regresamos los valores a su tipo "character" para poder aplicar las operaciones condicionales 
+edad.intubados.yn <- edad.intubados
+edad.intubados.yn$intubado.vec <- as.character(edad.intubados.yn$intubado.vec)
+
+# Nos quedamos solamente con las respuestas SI y NO
+edad.intubados.yn <- subset(edad.intubados.yn, intubado.vec == "SI" | intubado.vec == "NO")
+
+# Finalmente, regresamos los valores al tipo "factor" para poder graficarlos con facilidad
+edad.intubados.yn$intubado.vec <- as.factor(edad.intubados.yn$intubado.vec)
+
+# Verificamos los cambios
+str(edad.intubados.yn$intubado.vec)
+
+```
+# 5. Verificamos los cambios gráficamente
+```{r}
+library(ggplot2) # Cargamos la librería
+
+covid.plot2 <- ggplot(edad.intubados.yn,aes(x=edad.vec)) + geom_bar(aes(factor(edad.vec), fill = intubado.vec)) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 5, lineheight = 5))
+
+ggplotly(covid.plot2, width = 850, height = 850) # Desplegamos el gráfico
+```
+
+# 5 Limpiamos un poco más nuestros datos
+Seleccionamos solamente los campos de nuestro interés
+```{r}
+edad.intubados.yn2 <- select(edad.intubados.yn, edad.vec, intubado.vec, SEXO, ENTIDAD_NAC, NEUMONIA, TIPO_PACIENTE, DIABETES, HIPERTENSION, OBESIDAD, ASMA, INMUSUPR, TABAQUISMO, RENAL_CRONICA)
+
+# Verificamos la estructura final de nuestros datos
+str(edad.intubados.yn2)
+
+```
+Nos damos cuenta de que la mayoría de los datos son numéricos, debemos cambiarlos a etiquetas más amigables para su interpretació (revisamos los archivos Catalogos y Descriptores)
+```{r}
+# Reemplazamos los números por sus respectivas etiquetas
+edad.intubados.yn2$SEXO[edad.intubados.yn2$SEXO == 1] <- "MUJER"
+edad.intubados.yn2$SEXO[edad.intubados.yn2$SEXO == 2] <- "HOMBRE"
+edad.intubados.yn2$SEXO[edad.intubados.yn2$SEXO == 99] <- "NO ESPECIFICADO"
+
+# Verificamos los cambios
+str(edad.intubados.yn2$SEXO)
+
+# Reemplazamos los números por sus respectivas etiquetas
+edad.intubados.yn2$TIPO_PACIENTE[edad.intubados.yn2$TIPO_PACIENTE == 1] <- "AMBULATORIO"
+edad.intubados.yn2$TIPO_PACIENTE[edad.intubados.yn2$TIPO_PACIENTE == 2] <- "HOSPITALIZADO"
+edad.intubados.yn2$TIPO_PACIENTE[edad.intubados.yn2$TIPO_PACIENTE == 99] <- "NO ESPECIFICADO"
+# Verificamos los cambios
+str(edad.intubados.yn2$TIPO_PACIENTE)
+
+```
+Generamos una función para etiquetar los datos de una forma más eficiente
+```{r}
+# Creamos una función para facilitar el proceso de etiquetado
+YN_fun <- function(value){
+  if (value == 1) {
+    out <- "SI"
+  }else if (value == 2) {
+    out <- "NO"
+  }else if (value == 97){
+    out <- "NO APLICA"
+  }else if (value == 98){
+    out <- "SE IGNORA"
+  }else if (value == 99) {
+    out <- "NO ESPECIFICADO"
+  }
+  
+  return(out)
+}
+
+# ¡Tiempo de aplicar la función!
+edad.intubados.yn2$ASMA <- sapply(edad.intubados.yn2$ASMA, YN_fun)
+edad.intubados.yn2$NEUMONIA <- sapply(edad.intubados.yn2$NEUMONIA, YN_fun)
+edad.intubados.yn2$DIABETES <- sapply(edad.intubados.yn2$DIABETES, YN_fun)
+edad.intubados.yn2$HIPERTENSION <- sapply(edad.intubados.yn2$HIPERTENSION, YN_fun)
+edad.intubados.yn2$OBESIDAD <- sapply(edad.intubados.yn2$OBESIDAD, YN_fun)
+edad.intubados.yn2$INMUSUPR <- sapply(edad.intubados.yn2$INMUSUPR, YN_fun)
+edad.intubados.yn2$RENAL_CRONICA <- sapply(edad.intubados.yn2$RENAL_CRONICA, YN_fun)
+edad.intubados.yn2$TABAQUISMO <- sapply(edad.intubados.yn2$TABAQUISMO, YN_fun)
+
+# Verificamos los cambios realizados
+str(edad.intubados.yn2)
+```
+Perfecto, ahora eliminamos los valores diferentes a SI y NO.
+```{r}
+# Filtramos utilizando condicionales
+edad.intubados.yn2 <- subset(edad.intubados.yn2, SEXO == "HOMBRE" | SEXO == "MUJER")
+edad.intubados.yn2 <- subset(edad.intubados.yn2, NEUMONIA == "SI" | NEUMONIA == "NO")
+edad.intubados.yn2 <- subset(edad.intubados.yn2, DIABETES == "SI" | DIABETES == "NO")
+edad.intubados.yn2 <- subset(edad.intubados.yn2, HIPERTENSION == "SI" | HIPERTENSION == "NO")
+edad.intubados.yn2 <- subset(edad.intubados.yn2, OBESIDAD == "SI" | OBESIDAD == "NO")
+edad.intubados.yn2 <- subset(edad.intubados.yn2, INMUSUPR == "SI" | INMUSUPR == "NO")
+edad.intubados.yn2 <- subset(edad.intubados.yn2, TABAQUISMO == "SI" | TABAQUISMO == "NO")
+edad.intubados.yn2 <- subset(edad.intubados.yn2, RENAL_CRONICA == "SI" | RENAL_CRONICA == "NO")
+
+# Verificamos los cambios
+str(edad.intubados.yn2)
+
+```
+
+
+Realizamos el mismo proceso de etiquetado para el campo ENTIDAD_NAC que contiene las entidades federativas de cada caso
+```{r}
+# Asignamos todos los nombres a un vector
+entidades.nombres <- c("AGUASCALIENTES",
+"BAJA CALIFORNIA",
+"BAJA CALIFORNIA SUR",
+"CAMPECHE",
+"COAHUILA DE ZARAGOZA",
+"COLIMA",
+"CHIAPAS",
+"CHIHUAHUA",
+"CIUDAD DE MÉXICO",
+"DURANGO",
+"GUANAJUATO",
+"GUERRERO",
+"HIDALGO",
+"JALISCO",
+"MÉXICO",
+"MICHOACÁN DE OCAMPO",
+"MORELOS",
+"NAYARIT",
+"NUEVO LEÓN",
+"OAXACA",
+"PUEBLA",
+"QUERÉTARO",
+"QUINTANA ROO",
+"SAN LUIS POTOSÍ",
+"SINALOA",
+"SONORA",
+"TABASCO",
+"TAMAULIPAS",
+"TLAXCALA",
+"VERACRUZ DE IGNACIO DE LA LLAVE",
+"YUCATÁN",
+"ZACATECAS",
+"ESTADOS UNIDOS MEXICANOS",
+"NO APLICA",
+"SE IGNORA",
+"NO ESPECIFICADO")
+
+```
+
+Creamos una función para aplicarla en todo el campo que contiene los valores numéricos de las entidades federativas
+```{r}
+nombres.fun <- function(value){
+  if (value == 1) {
+    out <- entidades.nombres[1]
+  }else if (value == 2) {
+    out <- entidades.nombres[2]
+  }else if (value == 3){
+    out <- entidades.nombres[3]
+  }else if (value == 4){
+    out <- entidades.nombres[4]
+  }else if (value == 5) {
+    out <- entidades.nombres[5]
+  }else if (value == 6) {
+    out <- entidades.nombres[6]
+  }else if (value == 7){
+    out <- entidades.nombres[7]
+  }else if (value == 8){
+    out <- entidades.nombres[8]
+  }else if (value == 9) {
+    out <- entidades.nombres[9]
+  }else if (value == 10){
+    out <- entidades.nombres[10]
+  }else if (value == 11){
+    out <- entidades.nombres[11]
+  }else if (value == 12) {
+    out <- entidades.nombres[12]
+  }else if (value == 13) {
+    out <- entidades.nombres[13]
+  }else if (value == 14){
+    out <- entidades.nombres[14]
+  }else if (value == 15){
+    out <- entidades.nombres[15]
+  }else if (value == 16) {
+    out <- entidades.nombres[16]
+  }else if (value == 17){
+    out <- entidades.nombres[17]
+  }else if (value == 18){
+    out <- entidades.nombres[18]
+  }else if (value == 19) {
+    out <- entidades.nombres[19]
+  }else if (value == 20) {
+    out <- entidades.nombres[20]
+  }else if (value == 21){
+    out <- entidades.nombres[21]
+  }else if (value == 22){
+    out <- entidades.nombres[22]
+  }else if (value == 23) {
+    out <- entidades.nombres[23]
+  }else if (value == 24){
+    out <- entidades.nombres[24]
+  }else if (value == 25){
+    out <- entidades.nombres[25]
+  }else if (value == 26) {
+    out <- entidades.nombres[26]
+  }else if (value == 27) {
+    out <- entidades.nombres[27]
+  }else if (value == 28){
+    out <- entidades.nombres[28]
+  }else if (value == 29){
+    out <- entidades.nombres[29]
+  }else if (value == 30) {
+    out <- entidades.nombres[30]
+  }else if (value == 31){
+    out <- entidades.nombres[31]
+  }else if (value == 32) {
+    out <- entidades.nombres[32]
+  }else if (value == 36) {
+    out <- entidades.nombres[33]
+  }else if (value == 97){
+    out <- entidades.nombres[34]
+  }else if (value == 98){
+    out <- entidades.nombres[35]
+  }else if (value == 99) {
+    out <- entidades.nombres[36]
+  }
+
+  return(out)
+}
+```
+
+Aplicamos la función para etiquetar los valores
+```{r}
+edad.intubados.yn3 <- edad.intubados.yn2 
+
+# Aplicamos la función a toda la columna
+edad.intubados.yn3$ENTIDAD_NAC <- sapply(edad.intubados.yn3$ENTIDAD_NAC, nombres.fun)
+
+# Verificamos los cambios
+unique(edad.intubados.yn3$ENTIDAD_NAC)
+```
+Filtramos los valores que son diferentes a entidades federativas, solo conservamos las etiquetas de interés
+```{r}
+edad.intubados.yn3 <- subset(edad.intubados.yn3, ENTIDAD_NAC!="NO APLICA" | ENTIDAD_NAC !="NO ESPECIFICADO" | ENTIDAD_NAC !="SE IGNORA" | ENTIDAD_NAC !="ESTADOS UNIDOS MEXICANOS")
+
+# Verificamos los cambios
+unique(edad.intubados.yn3$ENTIDAD_NAC)
+str(edad.intubados.yn3)
+```
+Finalmente, convertimos todos los valores a tipo "factor" para asignarlos como categorías
+```{r} 
+edad.intubados.yn3$SEXO <- as.factor(edad.intubados.yn3$SEXO)
+edad.intubados.yn3$ENTIDAD_NAC <- as.factor(edad.intubados.yn3$ENTIDAD_NAC)
+edad.intubados.yn3$NEUMONIA <- as.factor(edad.intubados.yn3$NEUMONIA)
+edad.intubados.yn3$TIPO_PACIENTE <- as.factor(edad.intubados.yn3$TIPO_PACIENTE)
+edad.intubados.yn3$DIABETES <- as.factor(edad.intubados.yn3$DIABETES)
+edad.intubados.yn3$HIPERTENSION <- as.factor(edad.intubados.yn3$HIPERTENSION)
+edad.intubados.yn3$OBESIDAD <- as.factor(edad.intubados.yn3$OBESIDAD)
+edad.intubados.yn3$ASMA <- as.factor(edad.intubados.yn3$ASMA)
+edad.intubados.yn3$INMUSUPR <- as.factor(edad.intubados.yn3$INMUSUPR)
+edad.intubados.yn3$TABAQUISMO <- as.factor(edad.intubados.yn3$TABAQUISMO)
+edad.intubados.yn3$RENAL_CRONICA <- as.factor(edad.intubados.yn3$RENAL_CRONICA)
+```
+
+# 6. Graficamos por última vez
+En este paso graficamos los valores resultantes de nuestro proceso de limpieza de la base de datos
+```{r}
+library(ggplot2)
+ 
+plot.test <- ggplot(edad.intubados.yn3, aes(x = ENTIDAD_NAC)) + geom_bar(aes(ENTIDAD_NAC,fill = SEXO)) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1,size = 5,lineheight = 5)) + ggtitle("Contagios de COVID-19 por entidad",subtitle = "27/01/2021")
+
+ggplotly(plot.test,width = 850, height = 850)
+```
+
+# 7. Exportamos las bases de datos resultantes en archivos csv
+Este paso es importante, ya que evita sobreescribir sobre los data frames por accidente y, en caso de reiniciar el programa, no será necesario correr las líneas de código anteriores.
+
+En este caso, yo apliqué todas las líneas anteriores a dos archivos .csv diferentes, esto para verificar que el proceso es replicable a diversas bases de datos si la estructura es similar,
+```{r}
+# Asignamos un nuevo nombre al data frame a guardar (opcional)
+covid.27 <- edad.intubados.yn3
+
+# Exportamos en formato de archivo .csv
+write.csv(covid.27, file = "covid27-01-21.csv")
+
+```
+
+# Ver la PARTE 2 para ejemplos de visualizaciones más detalladas de estas bases de datos resultantes:)
